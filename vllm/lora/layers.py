@@ -1186,6 +1186,20 @@ class LogitsProcessorWithLoRA(BaseLayerWithLoRA):
         if 32000 < self.base_layer.vocab_size > 257024:
             raise ValueError("When using LoRA, vocab size must be "
                              "32000 >= vocab_size <= 257024")
+
+        dtype = lora_config.lora_dtype
+        if isinstance(dtype, str):
+            if dtype == "auto":
+                # Try to get dtype from self, then base_layer, else default
+                if hasattr(self, "dtype"):
+                    dtype = self.dtype
+                elif hasattr(self.base_layer, "weight"):
+                    dtype = self.base_layer.weight.dtype
+                else:
+                    dtype = torch.float32
+            else:
+                dtype = getattr(torch, dtype)
+
         self.lora_a_stacked = torch.zeros(
             (
                 max_loras,
@@ -1193,7 +1207,7 @@ class LogitsProcessorWithLoRA(BaseLayerWithLoRA):
                 lora_config.max_lora_rank,
                 self.hidden_size,
             ),
-            dtype=lora_config.lora_dtype,
+            dtype=dtype,
             device=self.device,
         )
         self.lora_b_stacked = torch.zeros(
@@ -1206,7 +1220,7 @@ class LogitsProcessorWithLoRA(BaseLayerWithLoRA):
                 lora_config.lora_vocab_padding_size,
                 lora_config.max_lora_rank,
             ),
-            dtype=lora_config.lora_dtype,
+            dtype=dtype,
             device=self.device,
         )
         self.embeddings_tensors = torch.full(
