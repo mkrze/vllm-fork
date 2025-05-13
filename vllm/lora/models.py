@@ -132,6 +132,15 @@ class LoRAModel(AdapterModel):
                         (k for k in embedding_modules if k in module_name),
                         None)
                     if embeddings_module:
+                        # Ensure device is a torch.device
+                        if isinstance(device, str):
+                            device = torch.device(device)
+                        # Ensure dtype is a torch.dtype
+                        if isinstance(dtype, str):
+                            if dtype == "auto":
+                                dtype = torch.float32  # or another sensible default
+                            else:
+                                dtype = getattr(torch, dtype)
                         lora_embeddings_tensor = embeddings[
                             embedding_modules[embeddings_module]].to(
                                 device=device, dtype=dtype)
