@@ -741,13 +741,26 @@ class MergedColumnParallelLinearWithLoRA(ColumnParallelLinearWithLoRA):
             lora_config.max_lora_rank if not lora_config.fully_sharded_loras
             else divide(lora_config.max_lora_rank, self.tp_size))
 
+        dtype = lora_config.lora_dtype
+        if isinstance(dtype, str):
+            if dtype == "auto":
+                # Try to get dtype from self, then base_layer, else default
+                if hasattr(self, "dtype"):
+                    dtype = self.dtype
+                elif hasattr(self.base_layer, "weight"):
+                    dtype = self.base_layer.weight.dtype
+                else:
+                    dtype = torch.float32
+            else:
+                dtype = getattr(torch, dtype)
+
         self.lora_a_stacked = tuple(
             torch.zeros(
                 max_loras,
                 1,
                 lora_a_output_size_per_partition,
                 self.input_size,
-                dtype=lora_config.lora_dtype,
+                dtype=dtype,
                 device=self.device,
             ) for _ in range(self.n_slices))
         self.lora_b_stacked = tuple(
@@ -756,7 +769,7 @@ class MergedColumnParallelLinearWithLoRA(ColumnParallelLinearWithLoRA):
                 1,
                 output_size,
                 lora_config.max_lora_rank,
-                dtype=lora_config.lora_dtype,
+                dtype=dtype,
                 device=self.device,
             ) for output_size in self.output_slices)
         if lora_config.bias_enabled:
@@ -765,7 +778,7 @@ class MergedColumnParallelLinearWithLoRA(ColumnParallelLinearWithLoRA):
                     max_loras,
                     1,
                     output_size,
-                    dtype=lora_config.lora_dtype,
+                    dtype=dtype,
                     device=self.device,
                 ) for output_size in self.output_slices)
 
