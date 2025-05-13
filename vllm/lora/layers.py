@@ -363,13 +363,26 @@ class BaseLinearLayerWithLoRA(BaseLayerWithLoRA):
         else:
             raise NotImplementedError
 
+        dtype = lora_config.lora_dtype
+        if isinstance(dtype, str):
+            if dtype == "auto":
+                # Try to get dtype from self, then base_layer, else default
+                if hasattr(self, "dtype"):
+                    dtype = self.dtype
+                elif hasattr(self.base_layer, "weight"):
+                    dtype = self.base_layer.weight.dtype
+                else:
+                    dtype = torch.float32
+            else:
+                dtype = getattr(torch, dtype)
+
         self.lora_a_stacked = tuple(
             torch.zeros(
                 max_loras,
                 1,
                 lora_a_out_size,
                 self.input_size,
-                dtype=lora_config.lora_dtype,
+                dtype=dtype,
                 device=self.device,
             ) for _ in range(self.n_slices))
         self.lora_b_stacked = tuple(
@@ -378,7 +391,7 @@ class BaseLinearLayerWithLoRA(BaseLayerWithLoRA):
                 1,
                 lora_b_out_size,
                 lora_config.max_lora_rank,
-                dtype=lora_config.lora_dtype,
+                dtype=dtype,
                 device=self.device,
             ) for _ in range(self.n_slices))
         if lora_config.bias_enabled:
@@ -388,7 +401,7 @@ class BaseLinearLayerWithLoRA(BaseLayerWithLoRA):
                     max_loras,
                     1,
                     lora_bias_out_size,
-                    dtype=lora_config.lora_dtype,
+                    dtype=dtype,
                     device=self.device,
                 ) for _ in range(self.n_slices))
         self.output_slices = (self.lora_b_stacked[0].shape[2], )
