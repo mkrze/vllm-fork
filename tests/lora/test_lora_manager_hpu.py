@@ -126,7 +126,8 @@ def test_replace_submodules(dist_init, dummy_model):
                       ColumnParallelLinearWithLoRA)
     assert isinstance(model.get_submodule("layer1.dense1"),
                       ColumnParallelLinearWithLoRA)
-    assert isinstance(model.get_submodule("dense2"), RowParallelLinear)
+    assert isinstance(model.get_submodule("dense2"), RowParallelLinearWithLoRA)
+    assert isinstance(model.get_submodule("dense2").base_layer, RowParallelLinear)
     assert isinstance(model.get_submodule("layer1.dense2"),
                       RowParallelLinearWithLoRA)
 

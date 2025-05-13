@@ -168,13 +168,26 @@ class VocabParallelEmbeddingWithLoRA(BaseLayerWithLoRA, CustomOp):
             self.embeddings_slice = None
             self.embeddings_weights = None
 
+        dtype = lora_config.lora_dtype
+        if isinstance(dtype, str):
+            if dtype == "auto":
+                # Try to get dtype from self, then base_layer, else default
+                if hasattr(self, "dtype"):
+                    dtype = self.dtype
+                elif hasattr(self.base_layer, "weight"):
+                    dtype = self.base_layer.weight.dtype
+                else:
+                    dtype = torch.float32
+            else:
+                dtype = getattr(torch, dtype)
+
         self.embeddings_tensors = torch.zeros(
             (
                 max_loras,
                 lora_config.lora_extra_vocab_size,
                 self.base_layer.embedding_dim,
             ),
-            dtype=self.base_layer.weight.dtype,
+            dtype=dtype,
             device=self.base_layer.weight.device,
         )
         self.lora_a_stacked = torch.zeros(
@@ -184,7 +197,7 @@ class VocabParallelEmbeddingWithLoRA(BaseLayerWithLoRA, CustomOp):
                 lora_config.lora_extra_vocab_size,
                 lora_config.max_lora_rank,
             ),
-            dtype=lora_config.lora_dtype,
+            dtype=dtype,
             device=self.base_layer.weight.device,
         )
         self.lora_b_stacked = torch.zeros(
@@ -194,7 +207,7 @@ class VocabParallelEmbeddingWithLoRA(BaseLayerWithLoRA, CustomOp):
                 self.base_layer.embedding_dim,
                 lora_config.max_lora_rank,
             ),
-            dtype=lora_config.lora_dtype,
+            dtype=dtype,
             device=self.base_layer.weight.device,
         )
         self.lora_a_stacked_2d = self.lora_a_stacked.view(
